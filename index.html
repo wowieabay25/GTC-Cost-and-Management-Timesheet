@@ -85,7 +85,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 .heatmap{border-collapse:collapse}
 .heatmap th{font-family:var(--mono);font-size:7px;color:var(--ink3);padding:3px 4px;text-align:center;white-space:nowrap}
 .heatmap td{width:34px;height:28px;text-align:center;font-family:var(--mono);font-size:7px;border:1px solid var(--rule);cursor:default}
-.heatmap td:first-child{text-align:right;font-size:8px;padding-right:8px;color:var(--ink3);border:none;width:68px}
+.heatmap td:first-child,.heatmap th:first-child{position:sticky;left:0;z-index:2;background:var(--surface);text-align:right;font-size:8px;padding-right:8px;color:var(--ink3);border:none;width:90px;white-space:nowrap;box-shadow:2px 0 4px rgba(0,0,0,0.06)}
 .hm-0{background:#f5f2ed}.hm-1{background:rgba(26,107,74,0.08)}.hm-2{background:rgba(26,107,74,0.2);color:var(--accent2)}.hm-3{background:rgba(26,107,74,0.38);color:var(--accent2)}.hm-4{background:rgba(181,134,13,0.25);color:var(--gold)}.hm-5{background:rgba(200,66,26,0.22);color:var(--accent)}.hm-6{background:rgba(200,66,26,0.45);color:var(--accent);font-weight:600}
 .al{list-style:none}
 .ai-item{display:flex;gap:8px;padding:7px 13px;border-bottom:1px solid var(--rule);align-items:flex-start}
@@ -165,6 +165,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
   <button class="nav-tab" onclick="showView('consolidated',this)">Team Consolidated</button>
   <button class="nav-tab" onclick="showView('tasks',this)">Task Analysis</button>
   <button class="nav-tab" onclick="showView('heatmap',this)">Hours Heatmap</button>
+  <button class="nav-tab" onclick="showView('report',this)">Under-Hours Report</button>
 </div>
 
 <div class="page">
@@ -177,7 +178,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
   </div>
   <div class="sr"><span>Monthly Snapshot</span></div>
   <div class="stats-strip" style="grid-template-columns:repeat(7,1fr)" id="i-stats"></div>
-  <button class="run-btn" id="i-ai-btn" onclick="runAI('i')"><span class="btn-spin" id="i-spin"></span><span id="i-btn-txt">▶ Run AI Analysis</span></button>
+
   <div class="g2">
     <div class="panel">
       <div class="ph"><span class="pt">Daily Compliance Log</span><span class="pb" id="i-cbadge">—</span></div>
@@ -193,7 +194,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
   </div>
   <div class="g2">
     <div class="panel"><div class="ph"><span class="pt">Category Breakdown</span></div><div class="bc-wrap" id="i-cats"></div></div>
-    <div class="ai-panel"><div class="ai-ph"><div><div class="ai-sub">Claude · Qualitative Effectiveness Audit</div><div class="ai-ttl">AI Manager Analysis</div></div></div><div class="ai-body"><div class="ai-ld" id="i-ai-ld" style="display:none"><div class="ai-sp"></div><span>Analyzing…</span></div><div class="ai-txt" id="i-ai-out" style="display:none"></div><div id="i-ai-ph" style="font-family:var(--mono);font-size:10px;color:#555">Select employee + month, then click Run AI Analysis.</div></div></div>
+
   </div>
 </div>
 
@@ -204,7 +205,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
   </div>
   <div class="sr"><span>Team Overview</span></div>
   <div class="stats-strip" style="grid-template-columns:repeat(6,1fr)" id="c-stats"></div>
-  <button class="run-btn" id="c-ai-btn" onclick="runAI('c')"><span class="btn-spin" id="c-spin"></span><span id="c-btn-txt">▶ Run AI Team Analysis</span></button>
+
   <div class="sr"><span>Employee Comparison</span></div>
   <div id="c-cards" style="display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:14px"></div>
   <div class="g2">
@@ -219,7 +220,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
     <div class="panel"><div class="ph"><span class="pt">Challenge Level Distribution</span><span class="pb pb-blue">% of logged hours</span></div><div class="bc-wrap" id="c-chal-bars"></div></div>
     <div class="panel"><div class="ph"><span class="pt">Late-Night Work (after 22:00)</span><span class="pb pb-alert">task start count</span></div><div class="bc-wrap" id="c-late-bars"></div></div>
   </div>
-  <div class="ai-panel"><div class="ai-ph"><div><div class="ai-sub">Claude · Team-Level Executive Audit</div><div class="ai-ttl">Consolidated AI Manager Report</div></div></div><div class="ai-body"><div class="ai-ld" id="c-ai-ld" style="display:none"><div class="ai-sp"></div><span>Generating team analysis…</span></div><div class="ai-txt" id="c-ai-out" style="display:none"></div><div id="c-ai-ph" style="font-family:var(--mono);font-size:10px;color:#555">Select a month and click Run AI Team Analysis.</div></div></div>
+
 </div>
 
 <!-- VIEW 3: TASK ANALYSIS -->
@@ -246,7 +247,24 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 <!-- VIEW 4: HEATMAP -->
 <div id="view-heatmap" class="view">
   <div class="sr"><span>Team Hours Heatmap</span></div>
-  <div class="panel"><div class="ph"><span class="pt">Daily Hours per Employee</span><span class="pb pb-alert">darker = more hours · gold border = weekend</span></div><div class="heatmap-wrap"><table class="heatmap" id="heatmap-tbl"></table></div></div>
+  <div class="controls" style="margin-bottom:14px">
+    <div class="ctrl-grp">
+      <div class="ctrl-lbl">View Mode</div>
+      <div class="btn-row" id="hm-mode-row">
+        <button class="pill active" id="hm-btn-continuous" onclick="setHeatmapMode('continuous',this)">Continuous</button>
+        <button class="pill" id="hm-btn-monthly" onclick="setHeatmapMode('monthly',this)">Monthly</button>
+      </div>
+    </div>
+    <div class="ctrl-grp" id="hm-month-grp" style="display:none">
+      <div class="ctrl-lbl">Month</div>
+      <div class="btn-row" id="hm-month-row"></div>
+    </div>
+  </div>
+  <div class="panel"><div class="ph"><span class="pt">Daily Hours per Employee</span><span class="pb pb-alert">darker = more hours · gold border = weekend</span></div>
+    <div class="heatmap-wrap" style="overflow-x:auto;position:relative">
+      <table class="heatmap" id="heatmap-tbl" style="border-collapse:collapse"></table>
+    </div>
+  </div>
   <div class="g2">
     <div class="panel"><div class="ph"><span class="pt">Daily Team Total Hours</span></div><div class="bc-wrap" id="team-daily-bars"></div></div>
     <div class="panel"><div class="ph"><span class="pt">Legend</span></div><div style="padding:14px;font-family:var(--mono);font-size:9px;line-height:2.4;color:var(--ink2)">
@@ -259,6 +277,40 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
       <div><span style="display:inline-block;width:18px;height:11px;background:rgba(200,66,26,0.45);border:1px solid var(--rule);vertical-align:middle;margin-right:6px"></span>&gt; 15h (extreme)</div>
       <div style="margin-top:4px;color:var(--ink3);font-size:8px">Gold-bordered cells = weekend work</div>
     </div></div>
+  </div>
+</div>
+<!-- VIEW 5: UNDER-HOURS REPORT -->
+<div id="view-report" class="view">
+  <div class="sr"><span>Under-Hours Report</span></div>
+  <div class="controls" style="margin-bottom:14px">
+    <div class="ctrl-grp">
+      <div class="ctrl-lbl">Month</div>
+      <div class="btn-row" id="rpt-month-row"></div>
+    </div>
+    <div class="ctrl-grp">
+      <div class="ctrl-lbl">Employee</div>
+      <div class="btn-row" id="rpt-emp-row"></div>
+    </div>
+  </div>
+  <div class="stats-strip" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="rpt-stats"></div>
+  <div class="panel">
+    <div class="ph">
+      <span class="pt">Under-Hours Days Detail</span>
+      <span class="pb pb-alert" id="rpt-badge">—</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="dt">
+        <thead><tr>
+          <th>Employee</th><th>Date</th><th>Day</th>
+          <th>Hours Logged</th><th>Shortfall</th><th>Tasks</th><th>Status</th>
+        </tr></thead>
+        <tbody id="rpt-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="g2" style="margin-top:14px">
+    <div class="panel"><div class="ph"><span class="pt">Under-Hours Count per Employee</span></div><div class="bc-wrap" id="rpt-emp-bars"></div></div>
+    <div class="panel"><div class="ph"><span class="pt">Shortfall Hours per Employee</span></div><div class="bc-wrap" id="rpt-shortfall-bars"></div></div>
   </div>
 </div>
 
@@ -365,9 +417,10 @@ function showView(id, el) {
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('view-' + id).classList.add('active');
   el.classList.add('active');
-  if (id === 'heatmap') buildHeatmap();
+  if (id === 'heatmap') { buildHeatmapMonthBtns(); buildHeatmap(); }
   if (id === 'tasks') buildTaskView();
   if (id === 'consolidated') renderConsolidated();
+  if (id === 'report') buildReportView();
 }
 
 // ── HELPERS ───────────────────────────────────────────────────────────────
@@ -422,6 +475,8 @@ function buildUI() {
   buildMonthBtns();
   renderIndividual();
   buildConsolidatedMonthBtns();
+  buildHeatmapMonthBtns();
+  buildReportMonthBtns();
 }
 
 // ── INDIVIDUAL ────────────────────────────────────────────────────────────
@@ -431,7 +486,7 @@ function buildEmpButtons() {
     const b=document.createElement('button');
     b.className='pill'+(i===0?' active':'');
     b.textContent=SHORT(e); b.title=e;
-    b.onclick=()=>{ iEmp=e; document.querySelectorAll('#i-emp-row .pill').forEach((x,j)=>x.classList.toggle('active',j===D.employees.indexOf(e))); buildMonthBtns(); renderIndividual(); resetAI('i'); };
+    b.onclick=()=>{ iEmp=e; document.querySelectorAll('#i-emp-row .pill').forEach((x,j)=>x.classList.toggle('active',j===D.employees.indexOf(e))); buildMonthBtns(); renderIndividual(); };
     row.appendChild(b);
   });
   iEmp=D.employees[0];
@@ -443,7 +498,7 @@ function buildMonthBtns() {
     const b=document.createElement('button');
     b.className='pill'+(m===iMonth?' m-active':'');
     b.textContent=ML(m);
-    b.onclick=()=>{ iMonth=m; document.querySelectorAll('#i-month-row .pill').forEach(x=>x.classList.remove('m-active')); b.classList.add('m-active'); renderIndividual(); resetAI('i'); };
+    b.onclick=()=>{ iMonth=m; document.querySelectorAll('#i-month-row .pill').forEach(x=>x.classList.remove('m-active')); b.classList.add('m-active'); renderIndividual(); };
     row.appendChild(b);
   });
 }
@@ -502,7 +557,7 @@ function renderIndividual() {
   document.getElementById('i-bars').innerHTML=days.map(d=>{
     const we=isWE(d.dow),cls=we?'f-we':d.total_h>=14?'f-xt':d.total_h>9?'f-ov':d.total_h<4?'f-ud':'f-nm';
     const pct=Math.min((d.total_h/(maxH+2))*100,100);
-    return '<div class="bc-row"><div class="bc-lbl" style="width:68px">'+d.date.substring(5)+' '+d.dow.substring(0,3)+'</div><div class="bc-track"><div class="bc-fill '+cls+'" style="width:'+pct+'%">'+(d.total_h>=3?d.total_h.toFixed(1)+'h':'')+'</div><div class="bc-marker" style="left:'+otPct+'%"></div></div></div>';
+    return '<div class="bc-row"><div class="bc-lbl" style="width:68px">'+d.date.substring(5)+' '+d.dow.substring(0,3)+'</div><div class="bc-track"><div class="bc-fill '+cls+'" style="width:'+pct+'%">'+(d.total_h>=3?d.total_h.toFixed(1)+'h':'')+'</div>'+(we?'':'<div class="bc-marker" style="left:'+otPct+'%"></div>')+'</div></div>';
   }).join('');
 
   const expH=wdays.length*8,util=Math.min(totalH/Math.max(expH,1),1.1)*38;
@@ -539,7 +594,7 @@ function buildConsolidatedMonthBtns() {
     const b=document.createElement('button');
     b.className='pill'+(m===cMonth?' m-active':'');
     b.textContent=m==='all'?'All Months':ML(m);
-    b.onclick=()=>{ cMonth=m; document.querySelectorAll('#c-month-row .pill').forEach(x=>x.classList.remove('m-active')); b.classList.add('m-active'); renderConsolidated(); resetAI('c'); };
+    b.onclick=()=>{ cMonth=m; document.querySelectorAll('#c-month-row .pill').forEach(x=>x.classList.remove('m-active')); b.classList.add('m-active'); renderConsolidated(); };
     row.appendChild(b);
   });
 }
@@ -665,10 +720,43 @@ function buildTaskView() {
 }
 
 // ── HEATMAP ───────────────────────────────────────────────────────────────
+let hmMode = 'continuous';
+let hmMonth = '';
+
+function setHeatmapMode(mode, btn) {
+  hmMode = mode;
+  document.querySelectorAll('#hm-mode-row .pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('hm-month-grp').style.display = mode==='monthly' ? '' : 'none';
+  buildHeatmap();
+}
+
+function buildHeatmapMonthBtns() {
+  if(!D) return;
+  const row = document.getElementById('hm-month-row'); row.innerHTML='';
+  if(!hmMonth) hmMonth = D.months[0];
+  D.months.forEach(m=>{
+    const b=document.createElement('button');
+    b.className='pill'+(m===hmMonth?' m-active':'');
+    b.textContent=ML(m);
+    b.onclick=()=>{
+      hmMonth=m;
+      document.querySelectorAll('#hm-month-row .pill').forEach(x=>x.classList.remove('m-active'));
+      b.classList.add('m-active');
+      buildHeatmap();
+    };
+    row.appendChild(b);
+  });
+}
+
 function buildHeatmap() {
   if(!D)return;
   const allDates=new Set();
-  D.employees.forEach(e=>D.months.forEach(m=>(D.perPerson[e]?.[m]||[]).forEach(d=>allDates.add(d.date))));
+  if(hmMode==='continuous') {
+    D.employees.forEach(e=>D.months.forEach(m=>(D.perPerson[e]?.[m]||[]).forEach(d=>allDates.add(d.date))));
+  } else {
+    D.employees.forEach(e=>(D.perPerson[e]?.[hmMonth]||[]).forEach(d=>allDates.add(d.date)));
+  }
   const dates=[...allDates].sort();
   const lookup={};
   D.employees.forEach(e=>D.months.forEach(m=>(D.perPerson[e]?.[m]||[]).forEach(d=>{if(!lookup[e])lookup[e]={};lookup[e][d.date]=d.total_h;})));
@@ -700,6 +788,102 @@ function buildHeatmap() {
   }).join('');
 }
 
+
+// ── REPORT ────────────────────────────────────────────────────────────────
+let rptMonth = 'all';
+let rptEmp = 'all';
+
+function buildReportMonthBtns() {
+  if(!D) return;
+  const mRow = document.getElementById('rpt-month-row'); mRow.innerHTML='';
+  const eRow = document.getElementById('rpt-emp-row'); eRow.innerHTML='';
+  // Month buttons
+  ['all',...D.months].forEach(m=>{
+    const b=document.createElement('button');
+    b.className='pill'+(m===rptMonth?' m-active':'');
+    b.textContent=m==='all'?'All Months':ML(m);
+    b.onclick=()=>{ rptMonth=m; document.querySelectorAll('#rpt-month-row .pill').forEach(x=>x.classList.remove('m-active')); b.classList.add('m-active'); buildReportView(); };
+    mRow.appendChild(b);
+  });
+  // Employee buttons
+  ['all',...D.employees].forEach(e=>{
+    const b=document.createElement('button');
+    b.className='pill'+(e===rptEmp?' active':'');
+    b.textContent=e==='all'?'All':SHORT(e);
+    b.onclick=()=>{ rptEmp=e; document.querySelectorAll('#rpt-emp-row .pill').forEach(x=>x.classList.remove('active')); b.classList.add('active'); buildReportView(); };
+    eRow.appendChild(b);
+  });
+}
+
+function buildReportView() {
+  if(!D) return;
+  // Gather under-hours days: weekdays, not leave, hours < 8 and > 0
+  const rows = [];
+  D.employees.forEach(emp => {
+    const months = rptMonth==='all' ? D.months : [rptMonth];
+    months.forEach(mo => {
+      (D.perPerson[emp]?.[mo]||[]).forEach(day => {
+        if(rptEmp !== 'all' && emp !== rptEmp) return;
+        const we = isWE(day.dow);
+        const lv = isLv(day.tasks);
+        if(!we && !lv && day.total_h > 0 && day.total_h < 8) {
+          rows.push({ emp, short: SHORT(emp), date: day.date, dow: day.dow,
+            hours: day.total_h, shortfall: Math.round((8 - day.total_h)*100)/100,
+            tasks: day.tasks, month: mo });
+        }
+      });
+    });
+  });
+  rows.sort((a,b) => a.date.localeCompare(b.date) || a.emp.localeCompare(b.emp));
+
+  // Stats
+  const totalDays = rows.length;
+  const totalShortfall = Math.round(rows.reduce((s,r)=>s+r.shortfall,0)*100)/100;
+  const empSet = [...new Set(rows.map(r=>r.emp))];
+  const worstEmp = empSet.length ? empSet.reduce((a,b)=>rows.filter(r=>r.emp===b).length > rows.filter(r=>r.emp===a).length ? b : a, empSet[0]) : '—';
+  const avgHours = rows.length ? Math.round(rows.reduce((s,r)=>s+r.hours,0)/rows.length*100)/100 : 0;
+
+  document.getElementById('rpt-stats').innerHTML =
+    '<div class="stat c-accent"><div class="stat-val">'+totalDays+'</div><div class="stat-lbl">Under-Hrs Days</div></div>'+
+    '<div class="stat c-accent"><div class="stat-val">'+totalShortfall.toFixed(1)+'h</div><div class="stat-lbl">Total Shortfall</div></div>'+
+    '<div class="stat c-blue"><div class="stat-val">'+empSet.length+'</div><div class="stat-lbl">Employees Affected</div></div>'+
+    '<div class="stat c-gold"><div class="stat-val">'+avgHours.toFixed(1)+'h</div><div class="stat-lbl">Avg Hours (under days)</div></div>'+
+    '<div class="stat"><div class="stat-val" style="font-size:14px;color:var(--accent)">'+SHORT(worstEmp)+'</div><div class="stat-lbl">Most Occurrences</div></div>';
+
+  document.getElementById('rpt-badge').textContent = totalDays === 0 ? 'ALL CLEAR' : totalDays + ' DAY(S)';
+  document.getElementById('rpt-badge').className = 'pb ' + (totalDays===0 ? 'pb-ok' : 'pb-alert');
+
+  // Table
+  const tbody = document.getElementById('rpt-tbody');
+  if(rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;font-family:var(--mono);font-size:10px;color:var(--accent2)">✓ No under-hours weekdays found for selected filters.</td></tr>';
+  } else {
+    tbody.innerHTML = rows.map(r => {
+      const sev = r.shortfall >= 4 ? 'f-ex' : r.shortfall >= 2 ? 'f-ot' : 'f-wk';
+      const topTask = r.tasks.slice(0,2).map(t=>'<span style="font-size:10px;color:var(--ink2)">'+t.t.substring(0,40)+(t.t.length>40?'…':'')+'</span>').join('<br>');
+      return '<tr class="under-h td">'+
+        '<td style="font-weight:600;font-size:11px">'+r.short+'</td>'+
+        '<td style="font-family:var(--mono);font-size:9px">'+r.date+'</td>'+
+        '<td style="font-family:var(--mono);font-size:9px">'+r.dow.substring(0,3)+'</td>'+
+        '<td style="font-family:var(--mono);font-size:12px;font-weight:600;color:var(--gold)">'+r.hours.toFixed(1)+'h</td>'+
+        '<td><span class="flag '+sev+'">−'+r.shortfall.toFixed(1)+'h</span></td>'+
+        '<td>'+topTask+'</td>'+
+        '<td><span class="flag f-un">Under-Hrs</span></td>'+
+        '</tr>';
+    }).join('');
+  }
+
+  // Per-employee bars
+  const empCounts = {}, empShortfalls = {};
+  D.employees.forEach(e=>{ empCounts[SHORT(e)]=0; empShortfalls[SHORT(e)]=0; });
+  rows.forEach(r=>{ empCounts[r.short]=(empCounts[r.short]||0)+1; empShortfalls[r.short]=(empShortfalls[r.short]||0)+r.shortfall; });
+  const maxC = Math.max(...Object.values(empCounts),1);
+  const maxS = Math.max(...Object.values(empShortfalls),1);
+  document.getElementById('rpt-emp-bars').innerHTML = Object.entries(empCounts).sort((a,b)=>b[1]-a[1])
+    .map(([n,v])=>'<div class="bc-row"><div class="bc-lbl" style="width:80px">'+n+'</div><div class="bc-track"><div class="bc-fill f-ud" style="width:'+(v/maxC*100)+'%">'+(v>0?v+' day'+(v>1?'s':''):'')+'</div></div><div class="bc-val">'+v+'d</div></div>').join('');
+  document.getElementById('rpt-shortfall-bars').innerHTML = Object.entries(empShortfalls).sort((a,b)=>b[1]-a[1])
+    .map(([n,v])=>'<div class="bc-row"><div class="bc-lbl" style="width:80px">'+n+'</div><div class="bc-track"><div class="bc-fill f-xt" style="width:'+(v/maxS*100)+'%">'+(v>0?v.toFixed(1)+'h':'')+'</div></div><div class="bc-val">'+v.toFixed(1)+'h</div></div>').join('');
+}
 
 // ── CSV PROCESSING ───────────────────────────────────────────
 function processCSV(csvText) {
@@ -737,47 +921,7 @@ function processCSV(csvText) {
   return{perPerson,topTasks,catByPM,chalDist,lateNight,employees:Object.keys(perPerson),months:[...new Set(records.map(r=>r.month))].sort(),totalRecords:records.length,fetchedAt:new Date().toISOString()};
 }
 
-// ── AI ────────────────────────────────────────────────────────────────────
-function resetAI(pfx){
-  document.getElementById(pfx+'-ai-ld').style.display='none';
-  document.getElementById(pfx+'-ai-out').style.display='none';
-  document.getElementById(pfx+'-ai-ph').style.display='block';
-}
-async function runAI(pfx) {
-  const btn=document.getElementById(pfx+'-ai-btn'),sp=document.getElementById(pfx+'-spin'),txt=document.getElementById(pfx+'-btn-txt');
-  btn.disabled=true; sp.style.display='flex'; txt.textContent='Analyzing…';
-  document.getElementById(pfx+'-ai-ph').style.display='none';
-  document.getElementById(pfx+'-ai-out').style.display='none';
-  document.getElementById(pfx+'-ai-ld').style.display='flex';
-  let prompt='';
-  if(pfx==='i'){
-    const days=D.perPerson[iEmp]?.[iMonth]||[];
-    const wdays=days.filter(d=>!isWE(d.dow)),wends=days.filter(d=>isWE(d.dow));
-    const totalH=days.reduce((s,d)=>s+d.total_h,0),otH=days.reduce((s,d)=>s+computeOT(d.total_h,isWE(d.dow)),0);
-    const underD=wdays.filter(d=>!isLv(d.tasks)&&d.total_h<8&&d.total_h>0).length;
-    const topT=days.flatMap(d=>d.tasks).filter(t=>(t.h||0)>=2).sort((a,b)=>(b.h||0)-(a.h||0)).slice(0,15);
-    prompt='You are a senior Finance Manager at GTC Export Tuna / Century Pacific Food Inc. Monthly timesheet audit for '+iEmp+', '+ML(iMonth)+'.\nMETRICS: '+days.length+' days, '+totalH.toFixed(1)+'h total, '+otH.toFixed(1)+'h OT, '+wends.length+' weekend days, '+underD+' under-hrs weekdays.\nTOP TASKS: '+topT.map(t=>'['+t.cat+'] '+t.t+' — '+t.h+'h ('+( t.ch||'?')+' complexity)').join(' | ')+'\nWrite 3 paragraphs: (1) **Utilization & OT** (2) **Task Quality** — flag vague/drift entries (3) **Manager Action Items**. Max 200 words. Use **bold** headers.';
-  } else {
-    const summary=D.employees.map(e=>{const days=getDays(e,cMonth);const wdays=days.filter(d=>!isWE(d.dow)),wends=days.filter(d=>isWE(d.dow));const totalH=days.reduce((s,d)=>s+d.total_h,0),otH=days.reduce((s,d)=>s+computeOT(d.total_h,isWE(d.dow)),0);const underD=wdays.filter(d=>!isLv(d.tasks)&&d.total_h<8&&d.total_h>0).length;return SHORT(e)+': '+totalH.toFixed(1)+'h, '+otH.toFixed(1)+'h OT, '+wends.length+' WE days, '+underD+' under-hrs';}).join('\n');
-    const topT=D.topTasks.slice(0,10).map(t=>t.task.substring(0,50)+' — '+t.h.toFixed(1)+'h ('+t.count+'×)').join('\n');
-    const label=cMonth==='all'?'All Months':ML(cMonth);
-    prompt='You are a senior Finance Manager at GTC Export Tuna. Consolidated team audit — '+label+'.\nTEAM:\n'+summary+'\nTOP TIME SINKS:\n'+topT+'\nWrite 4 paragraphs: (1) **Team Utilization** (2) **Top Time Sinks** (3) **Risk Flags** (4) **Recommendations**. Max 250 words. Use **bold** headers.';
-  }
-  try {
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1200,messages:[{role:'user',content:prompt}]})});
-    const data=await res.json();
-    const text=data.content?.[0]?.text||'Analysis unavailable.';
-    document.getElementById(pfx+'-ai-ld').style.display='none';
-    const out=document.getElementById(pfx+'-ai-out'); out.style.display='block';
-    out.innerHTML=text.replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>');
-  } catch(e) {
-    document.getElementById(pfx+'-ai-ld').style.display='none';
-    const out=document.getElementById(pfx+'-ai-out'); out.style.display='block';
-    out.textContent='AI analysis unavailable. Review metrics above manually.';
-  }
-  btn.disabled=false; sp.style.display='none';
-  txt.textContent=pfx==='i'?'▶ Run AI Analysis':'▶ Run AI Team Analysis';
-}
+
 
 // ── UTILS ─────────────────────────────────────────────────────────────────
 function parseCSVRow(line){const r=[];let c='',q=false;for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(q&&line[i+1]==='"'){c+='"';i++;}else q=!q;}else if(ch===','&&!q){r.push(c);c='';}else c+=ch;}r.push(c);return r;}
