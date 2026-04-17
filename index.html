@@ -841,10 +841,10 @@ function buildTaskView() {
     // Row color
     const rowCls = we ? 'weekend' : underH ? 'under-h' : ot > 0 ? 'ot-r' : '';
     // Tasks detail: show up to 3 tasks as mini list
-    const taskDetail = day.tasks.slice(0, 3).map(t =>
-      '<div style="font-size:9px;color:var(--ink2);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="' + t.t + '">' +
-      (t.h > 0 ? '<span style="font-family:var(--mono);color:var(--blue);font-size:8px">' + t.h.toFixed(1) + 'h</span> ' : '') + t.t.substring(0, 38) + (t.t.length > 38 ? '…' : '') + '</div>'
-    ).join('') + (day.tasks.length > 3 ? '<div style="font-size:8px;color:var(--ink3);font-family:var(--mono)">+' + (day.tasks.length - 3) + ' more</div>' : '');
+    const taskDetail = day.tasks.map(t =>
+      '<div style="font-size:9px;color:var(--ink2);line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px" title="' + t.t + '">' +
+      (t.h > 0 ? '<span style="font-family:var(--mono);color:var(--blue);font-size:8px">' + t.h.toFixed(1) + 'h</span> ' : '') + t.t + '</div>'
+    ).join('');
 
     return '<tr class="' + rowCls + '">' +
       '<td style="font-weight:600;font-size:11px">' + SHORT(day.emp) + '</td>' +
