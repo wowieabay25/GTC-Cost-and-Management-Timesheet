@@ -1,0 +1,24 @@
+name: Bake CSV into HTML
+
+on:
+  push:
+    paths:
+      - 'Timesheet.csv'
+
+jobs:
+  bake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inject CSV into HTML
+        run: |
+          python3 inject.py
+
+      - name: Commit updated HTML
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add index.html
+          git diff --cached --quiet || git commit -m "Auto: bake latest CSV data"
+          git push
