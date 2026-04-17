@@ -225,10 +225,23 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 
 <!-- VIEW 3: TASK ANALYSIS -->
 <div id="view-tasks" class="view">
-  <div class="sr"><span>Top Time-Consuming Tasks</span></div>
-  <div class="g32" style="margin-bottom:0">
+  <div class="controls">
+    <div class="ctrl-grp">
+      <div class="ctrl-lbl">Employee</div>
+      <div class="btn-row" id="ta-emp-row"></div>
+    </div>
+    <div class="ctrl-grp">
+      <div class="ctrl-lbl">Period</div>
+      <div class="btn-row" id="ta-month-row"></div>
+    </div>
+  </div>
+
+  <div class="stats-strip" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px" id="ta-stats"></div>
+
+  <div class="sr"><span>Task Breakdown</span></div>
+  <div class="g32" style="margin-bottom:14px">
     <div class="panel">
-      <div class="ph"><span class="pt">Tasks Ranked by Total Hours</span><span class="pb pb-alert">highest time sinks</span></div>
+      <div class="ph"><span class="pt">Tasks Ranked by Total Hours</span><span class="pb pb-alert" id="ta-task-badge">—</span></div>
       <div style="overflow-x:auto"><table class="dt"><thead><tr><th>#</th><th>Task Description</th><th>Category</th><th>Total Hrs</th><th>Times</th><th>Who</th><th>Intensity</th></tr></thead><tbody id="task-tbody"></tbody></table></div>
     </div>
     <div>
@@ -236,6 +249,25 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
       <div class="panel"><div class="ph"><span class="pt">Marathon Tasks ≥8h single session</span><span class="pb pb-alert">burnout risk</span></div><div style="overflow-x:auto"><table class="dt"><thead><tr><th>Employee</th><th>Date</th><th>Task</th><th>Hrs</th></tr></thead><tbody id="marathon-tbody"></tbody></table></div></div>
     </div>
   </div>
+
+  <div class="sr"><span>Daily Activities Log</span></div>
+  <div class="panel" style="margin-bottom:14px">
+    <div class="ph">
+      <span class="pt">Day-by-Day Drill-Down</span>
+      <span class="pb pb-blue" id="ta-daily-badge">—</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="dt">
+        <thead><tr>
+          <th>Employee</th><th>Date</th><th>Day</th>
+          <th>In</th><th>Out</th><th>Net Hrs</th>
+          <th>Tasks</th><th>Top Activity</th><th>Category</th><th>Flag</th>
+        </tr></thead>
+        <tbody id="ta-daily-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <div class="sr"><span>Managerial Intelligence</span></div>
   <div class="g3">
     <div class="panel"><div class="ph"><span class="pt">Administrative Drift Index</span><span class="pb pb-warn">Ad Hoc % of total</span></div><div class="bc-wrap" id="drift-bars"></div></div>
@@ -477,6 +509,7 @@ function buildUI() {
   buildConsolidatedMonthBtns();
   buildHeatmapMonthBtns();
   buildReportMonthBtns();
+  buildTaskFilterBtns();
 }
 
 // ── INDIVIDUAL ────────────────────────────────────────────────────────────
@@ -670,53 +703,193 @@ function renderConsolidated() {
 }
 
 // ── TASK VIEW ─────────────────────────────────────────────────────────────
+// ── TASK ANALYSIS FILTERS ─────────────────────────────────────────────────
+let taEmp = 'all';
+let taMonth = 'all';
+
+function buildTaskFilterBtns() {
+  if(!D) return;
+  // Employee row
+  const eRow = document.getElementById('ta-emp-row'); eRow.innerHTML = '';
+  ['all', ...D.employees].forEach(e => {
+    const b = document.createElement('button');
+    b.className = 'pill' + (e === taEmp ? ' active' : '');
+    b.textContent = e === 'all' ? 'All' : SHORT(e);
+    b.onclick = () => {
+      taEmp = e;
+      document.querySelectorAll('#ta-emp-row .pill').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      buildTaskView();
+    };
+    eRow.appendChild(b);
+  });
+  // Month row: All, each month, YTD
+  const mRow = document.getElementById('ta-month-row'); mRow.innerHTML = '';
+  ['all', ...D.months, 'ytd'].forEach(m => {
+    const b = document.createElement('button');
+    b.className = 'pill' + (m === taMonth ? ' m-active' : '');
+    b.textContent = m === 'all' ? 'All' : m === 'ytd' ? 'YTD' : ML(m);
+    b.onclick = () => {
+      taMonth = m;
+      document.querySelectorAll('#ta-month-row .pill').forEach(x => x.classList.remove('m-active'));
+      b.classList.add('m-active');
+      buildTaskView();
+    };
+    mRow.appendChild(b);
+  });
+}
+
+// Return days matching the current ta filters
+function getTADays() {
+  const emps = taEmp === 'all' ? D.employees : [taEmp];
+  // For YTD, include all months (same as all in this dataset, but semantically correct)
+  const months = (taMonth === 'all' || taMonth === 'ytd') ? D.months : [taMonth];
+  const out = [];
+  emps.forEach(emp => {
+    months.forEach(mo => {
+      (D.perPerson[emp]?.[mo] || []).forEach(day => out.push({ emp, ...day }));
+    });
+  });
+  return out;
+}
+
 function buildTaskView() {
-  if(!D)return;
-  const tbody=document.getElementById('task-tbody'); tbody.innerHTML='';
-  D.topTasks.forEach((t,i)=>{
-    const ipp=t.h/Math.max(t.count,1),ic=ipp>=10?'f-ex':ipp>=6?'f-ot':ipp>=3?'f-wk':'f-ok';
-    const tr=document.createElement('tr'); if(t.h>=10)tr.className='task-row-high';
-    tr.innerHTML='<td style="font-family:var(--mono);font-size:9px;color:var(--ink3)">'+(i+1)+'</td>'+
-      '<td style="max-width:240px;font-size:11px">'+t.task+'</td>'+
-      '<td>'+t.cats.slice(0,1).map(c=>'<span class="task-badge '+catBadge(c)+'">'+c.split(' ')[0]+'</span>').join('')+'</td>'+
-      '<td style="font-family:var(--mono);font-size:12px;font-weight:600;color:'+(t.h>=15?'var(--accent)':t.h>=10?'var(--blue)':'var(--ink)')+'">'+t.h.toFixed(1)+'h</td>'+
-      '<td style="font-family:var(--mono);font-size:10px;color:var(--ink3)">'+t.count+'×</td>'+
-      '<td style="font-size:10px;color:var(--ink3)">'+t.people.join(', ')+'</td>'+
-      '<td><span class="flag '+ic+'">'+ipp.toFixed(1)+'h/ea</span></td>';
+  if(!D) return;
+
+  const days = getTADays();
+
+  // ── build a task aggregation from filtered days ──
+  const taskTotals = {};
+  days.forEach(day => {
+    day.tasks.forEach(t => {
+      if (!(t.h > 0)) return;
+      const k = t.t.substring(0, 80);
+      if (!taskTotals[k]) taskTotals[k] = { h: 0, count: 0, people: new Set(), cats: new Set() };
+      taskTotals[k].h += t.h;
+      taskTotals[k].count++;
+      taskTotals[k].people.add(SHORT(day.emp));
+      taskTotals[k].cats.add((t.cat.split(',')[0] || '').trim());
+    });
+  });
+  const filteredTasks = Object.entries(taskTotals)
+    .sort((a, b) => b[1].h - a[1].h)
+    .slice(0, 40)
+    .map(([task, d]) => ({ task, h: Math.round(d.h * 100) / 100, count: d.count, people: [...d.people], cats: [...d.cats] }));
+
+  // ── Stats strip ──
+  const totalH = Math.round(days.reduce((s, d) => s + d.total_h, 0) * 10) / 10;
+  const totalTasks = days.reduce((s, d) => s + d.task_count, 0);
+  const totalDays = days.length;
+  const avgH = totalDays ? Math.round(totalH / totalDays * 10) / 10 : 0;
+  const maraCount = days.reduce((s, d) => s + d.tasks.filter(t => (t.h || 0) >= 8).length, 0);
+  document.getElementById('ta-stats').innerHTML =
+    '<div class="stat c-blue"><div class="stat-val">' + totalH.toFixed(0) + 'h</div><div class="stat-lbl">Total Hours</div></div>' +
+    '<div class="stat c-green"><div class="stat-val">' + avgH.toFixed(1) + 'h</div><div class="stat-lbl">Avg / Day</div></div>' +
+    '<div class="stat"><div class="stat-val">' + totalDays + '</div><div class="stat-lbl">Days Logged</div></div>' +
+    '<div class="stat c-gold"><div class="stat-val">' + totalTasks + '</div><div class="stat-lbl">Task Entries</div></div>' +
+    '<div class="stat c-accent"><div class="stat-val">' + maraCount + '</div><div class="stat-lbl">Marathon Tasks</div></div>';
+
+  // ── Tasks table ──
+  const tbody = document.getElementById('task-tbody'); tbody.innerHTML = '';
+  document.getElementById('ta-task-badge').textContent = filteredTasks.length + ' tasks';
+  filteredTasks.forEach((t, i) => {
+    const ipp = t.h / Math.max(t.count, 1), ic = ipp >= 10 ? 'f-ex' : ipp >= 6 ? 'f-ot' : ipp >= 3 ? 'f-wk' : 'f-ok';
+    const tr = document.createElement('tr'); if (t.h >= 10) tr.className = 'task-row-high';
+    tr.innerHTML = '<td style="font-family:var(--mono);font-size:9px;color:var(--ink3)">' + (i + 1) + '</td>' +
+      '<td style="max-width:240px;font-size:11px">' + t.task + '</td>' +
+      '<td>' + t.cats.slice(0, 1).map(c => '<span class="task-badge ' + catBadge(c) + '">' + c.split(' ')[0] + '</span>').join('') + '</td>' +
+      '<td style="font-family:var(--mono);font-size:12px;font-weight:600;color:' + (t.h >= 15 ? 'var(--accent)' : t.h >= 10 ? 'var(--blue)' : 'var(--ink)') + '">' + t.h.toFixed(1) + 'h</td>' +
+      '<td style="font-family:var(--mono);font-size:10px;color:var(--ink3)">' + t.count + '×</td>' +
+      '<td style="font-size:10px;color:var(--ink3)">' + t.people.join(', ') + '</td>' +
+      '<td><span class="flag ' + ic + '">' + ipp.toFixed(1) + 'h/ea</span></td>';
     tbody.appendChild(tr);
   });
 
-  const tc={};
-  D.topTasks.forEach(t=>t.cats.forEach(c=>tc[c]=(tc[c]||0)+t.h));
-  const tcS=Object.entries(tc).sort((a,b)=>b[1]-a[1]),maxTC=tcS[0]?.[1]||1;
-  document.getElementById('task-cat-bars').innerHTML=tcS.map(([c,h])=>makeBar(c,h,maxTC,catFill(c),'120px')).join('');
+  // ── Category bars ──
+  const tc = {};
+  filteredTasks.forEach(t => t.cats.forEach(c => tc[c] = (tc[c] || 0) + t.h));
+  const tcS = Object.entries(tc).sort((a, b) => b[1] - a[1]), maxTC = tcS[0]?.[1] || 1;
+  document.getElementById('task-cat-bars').innerHTML = tcS.map(([c, h]) => makeBar(c, h, maxTC, catFill(c), '120px')).join('');
 
-  const mara=[];
-  D.employees.forEach(emp=>D.months.forEach(m=>(D.perPerson[emp]?.[m]||[]).forEach(day=>day.tasks.forEach(t=>{if((t.h||0)>=8)mara.push({emp:SHORT(emp),date:day.date,task:t.t,h:t.h,cat:t.cat});}))));
-  mara.sort((a,b)=>b.h-a.h);
-  document.getElementById('marathon-tbody').innerHTML=mara.slice(0,15).map(m=>{
-    const hc=m.h>=15?'var(--accent)':m.h>=10?'var(--blue)':'var(--gold)';
-    return '<tr><td style="font-size:10px">'+m.emp+'</td><td style="font-family:var(--mono);font-size:9px;color:var(--ink3)">'+m.date.substring(5)+'</td><td style="font-size:11px;max-width:180px">'+m.task.substring(0,65)+(m.task.length>65?'…':'')+'</td><td style="font-family:var(--mono);font-size:12px;font-weight:600;color:'+hc+'">'+m.h.toFixed(1)+'h</td></tr>';
+  // ── Marathon tasks ──
+  const mara = [];
+  days.forEach(day => day.tasks.forEach(t => { if ((t.h || 0) >= 8) mara.push({ emp: SHORT(day.emp), date: day.date, task: t.t, h: t.h }); }));
+  mara.sort((a, b) => b.h - a.h);
+  document.getElementById('marathon-tbody').innerHTML = mara.slice(0, 20).map(m => {
+    const hc = m.h >= 15 ? 'var(--accent)' : m.h >= 10 ? 'var(--blue)' : 'var(--gold)';
+    return '<tr><td style="font-size:10px">' + m.emp + '</td><td style="font-family:var(--mono);font-size:9px;color:var(--ink3)">' + m.date.substring(5) + '</td><td style="font-size:11px;max-width:180px">' + m.task.substring(0, 65) + (m.task.length > 65 ? '…' : '') + '</td><td style="font-family:var(--mono);font-size:12px;font-weight:600;color:' + hc + '">' + m.h.toFixed(1) + 'h</td></tr>';
   }).join('');
 
-  const drift=D.employees.map(emp=>{
-    let ah=0,tot=0;
-    D.months.forEach(m=>Object.entries(D.catByPM[emp]?.[m]||{}).forEach(([c,h])=>{tot+=h;if(c.toLowerCase().includes('ad hoc'))ah+=h;}));
-    return {name:SHORT(emp),pct:tot>0?Math.round(ah/tot*100):0};
-  }).sort((a,b)=>b.pct-a.pct);
-  const maxP=Math.max(...drift.map(d=>d.pct),1);
-  document.getElementById('drift-bars').innerHTML=drift.map(d=>'<div class="bc-row"><div class="bc-lbl" style="width:80px">'+d.name+'</div><div class="bc-track"><div class="bc-fill f-ah" style="width:'+(d.pct/maxP*100)+'%">'+d.pct+'%</div></div><div class="bc-val">'+d.pct+'%</div></div>').join('')+'<div style="font-family:var(--mono);font-size:8px;color:var(--ink3);padding:5px 0">&gt;30% = drift concern</div>';
+  // ── Daily Activities ──
+  const sortedDays = [...days].sort((a, b) => a.date.localeCompare(b.date) || a.emp.localeCompare(b.emp));
+  document.getElementById('ta-daily-badge').textContent = sortedDays.length + ' day entries';
+  document.getElementById('ta-daily-tbody').innerHTML = sortedDays.map(day => {
+    const we = isWE(day.dow), lv = isLv(day.tasks);
+    const ot = computeOT(day.total_h, we);
+    const underH = !we && !lv && day.total_h > 0 && day.total_h < 8;
+    const topTask = day.tasks.slice().sort((a, b) => (b.h || 0) - (a.h || 0))[0];
+    const topCat = topTask ? (topTask.cat.split(',')[0] || '').trim() : '';
+    // Flag
+    let flagHtml = '';
+    if (lv) flagHtml = '<span class="flag f-sp">LEAVE</span>';
+    else if (we && day.total_h > 0) flagHtml = '<span class="flag f-wk">WKND</span>';
+    else if (day.total_h >= 14) flagHtml = '<span class="flag f-ex">EXTREME</span>';
+    else if (ot > 0) flagHtml = '<span class="flag f-ot">OT +' + ot.toFixed(1) + 'h</span>';
+    else if (underH) flagHtml = '<span class="flag f-un">UNDER</span>';
+    else if (day.total_h >= 8) flagHtml = '<span class="flag f-ok">OK</span>';
+    else flagHtml = '<span class="flag f-sp">—</span>';
+    // Row color
+    const rowCls = we ? 'weekend' : underH ? 'under-h' : ot > 0 ? 'ot-r' : '';
+    // Tasks detail: show up to 3 tasks as mini list
+    const taskDetail = day.tasks.slice(0, 3).map(t =>
+      '<div style="font-size:9px;color:var(--ink2);line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px" title="' + t.t + '">' +
+      (t.h > 0 ? '<span style="font-family:var(--mono);color:var(--blue);font-size:8px">' + t.h.toFixed(1) + 'h</span> ' : '') + t.t.substring(0, 38) + (t.t.length > 38 ? '…' : '') + '</div>'
+    ).join('') + (day.tasks.length > 3 ? '<div style="font-size:8px;color:var(--ink3);font-family:var(--mono)">+' + (day.tasks.length - 3) + ' more</div>' : '');
 
-  const recur=D.topTasks.filter(t=>t.count>=3&&t.h/t.count>=2).slice(0,8);
-  const maxRH=Math.max(...recur.map(r=>r.h),1);
-  document.getElementById('recur-bars').innerHTML=recur.map(r=>'<div class="bc-row"><div class="bc-lbl" style="width:130px;font-size:8px" title="'+r.task+'">'+r.task.substring(0,20)+'…</div><div class="bc-track"><div class="bc-fill f-pc" style="width:'+(r.h/maxRH*100)+'%">'+r.h.toFixed(1)+'h</div></div><div class="bc-val">'+r.count+'×</div></div>').join('')+'<div style="font-family:var(--mono);font-size:8px;color:var(--ink3);padding:5px 0">High recurrence = automation opportunity</div>';
+    return '<tr class="' + rowCls + '">' +
+      '<td style="font-weight:600;font-size:11px">' + SHORT(day.emp) + '</td>' +
+      '<td style="font-family:var(--mono);font-size:9px">' + day.date + '</td>' +
+      '<td style="font-family:var(--mono);font-size:9px;color:' + (we ? 'var(--gold)' : 'var(--ink3)') + '">' + day.dow.substring(0, 3) + '</td>' +
+      '<td style="font-family:var(--mono);font-size:9px">' + (day.first_in || '—') + '</td>' +
+      '<td style="font-family:var(--mono);font-size:9px">' + (day.last_out || '—') + '</td>' +
+      '<td style="font-family:var(--mono);font-size:12px;font-weight:600;color:' + (day.total_h >= 14 ? 'var(--accent)' : day.total_h >= 9 ? 'var(--blue)' : underH ? 'var(--gold)' : 'var(--ink)') + '">' + day.total_h.toFixed(1) + 'h</td>' +
+      '<td>' + taskDetail + '</td>' +
+      '<td style="font-size:10px;max-width:160px">' + (topTask ? topTask.t.substring(0, 45) + (topTask.t.length > 45 ? '…' : '') : '—') + '</td>' +
+      '<td>' + (topCat ? '<span class="task-badge ' + catBadge(topCat) + '">' + topCat.split(' ')[0] + '</span>' : '—') + '</td>' +
+      '<td>' + flagHtml + '</td>' +
+      '</tr>';
+  }).join('');
 
-  const VA=['Month End Closing','Post-Closing','Weekly','Audit','Inventory Count','Service Fee'];
-  let vaH=0,nvaH=0;
-  D.employees.forEach(emp=>D.months.forEach(m=>Object.entries(D.catByPM[emp]?.[m]||{}).forEach(([c,h])=>{if(VA.some(v=>c.includes(v.split(' ')[0])))vaH+=h;else nvaH+=h;})));
-  const maxVA=Math.max(vaH,nvaH);
-  const vaRatio=Math.round(vaH/(vaH+nvaH)*100)||0;
-  document.getElementById('va-bars').innerHTML=makeBar('Value-Add',vaH,maxVA,'f-nm','110px')+makeBar('Non-Value-Add',nvaH,maxVA,'f-ah','110px')+'<div style="font-family:var(--mono);font-size:8px;color:var(--ink3);padding:5px 0">VA ratio: '+vaRatio+'% · Target: &gt;80%</div>';
+  // ── Drift (filtered) ──
+  const emps = taEmp === 'all' ? D.employees : [taEmp];
+  const months = (taMonth === 'all' || taMonth === 'ytd') ? D.months : [taMonth];
+  const drift = emps.map(emp => {
+    let ah = 0, tot = 0;
+    months.forEach(m => Object.entries(D.catByPM[emp]?.[m] || {}).forEach(([c, h]) => { tot += h; if (c.toLowerCase().includes('ad hoc')) ah += h; }));
+    return { name: SHORT(emp), pct: tot > 0 ? Math.round(ah / tot * 100) : 0 };
+  }).sort((a, b) => b.pct - a.pct);
+  const maxP = Math.max(...drift.map(d => d.pct), 1);
+  document.getElementById('drift-bars').innerHTML = drift.map(d =>
+    '<div class="bc-row"><div class="bc-lbl" style="width:80px">' + d.name + '</div><div class="bc-track"><div class="bc-fill f-ah" style="width:' + (d.pct / maxP * 100) + '%">' + d.pct + '%</div></div><div class="bc-val">' + d.pct + '%</div></div>'
+  ).join('') + '<div style="font-family:var(--mono);font-size:8px;color:var(--ink3);padding:5px 0">&gt;30% = drift concern</div>';
+
+  // ── Recurring (filtered) ──
+  const recur = filteredTasks.filter(t => t.count >= 3 && t.h / t.count >= 2).slice(0, 8);
+  const maxRH = Math.max(...recur.map(r => r.h), 1);
+  document.getElementById('recur-bars').innerHTML = recur.map(r =>
+    '<div class="bc-row"><div class="bc-lbl" style="width:130px;font-size:8px" title="' + r.task + '">' + r.task.substring(0, 20) + '…</div><div class="bc-track"><div class="bc-fill f-pc" style="width:' + (r.h / maxRH * 100) + '%">' + r.h.toFixed(1) + 'h</div></div><div class="bc-val">' + r.count + '×</div></div>'
+  ).join('') + '<div style="font-family:var(--mono);font-size:8px;color:var(--ink3);padding:5px 0">High recurrence = automation opportunity</div>';
+
+  // ── Value-Add (filtered) ──
+  const VA = ['Month End Closing', 'Post-Closing', 'Weekly', 'Audit', 'Inventory Count', 'Service Fee'];
+  let vaH = 0, nvaH = 0;
+  emps.forEach(emp => months.forEach(m => Object.entries(D.catByPM[emp]?.[m] || {}).forEach(([c, h]) => {
+    if (VA.some(v => c.includes(v.split(' ')[0]))) vaH += h; else nvaH += h;
+  })));
+  const maxVA = Math.max(vaH, nvaH);
+  const vaRatio = Math.round(vaH / (vaH + nvaH) * 100) || 0;
+  document.getElementById('va-bars').innerHTML = makeBar('Value-Add', vaH, maxVA, 'f-nm', '110px') + makeBar('Non-Value-Add', nvaH, maxVA, 'f-ah', '110px') +
+    '<div style="font-family:var(--mono);font-size:8px;color:var(--ink3);padding:5px 0">VA ratio: ' + vaRatio + '% · Target: &gt;80%</div>';
 }
 
 // ── HEATMAP ───────────────────────────────────────────────────────────────
