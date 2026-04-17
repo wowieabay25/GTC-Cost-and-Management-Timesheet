@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'Timesheet.csv'
+  workflow_dispatch:  # allows manual trigger from GitHub UI
 
 jobs:
   bake:
@@ -11,14 +12,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Inject CSV into HTML
-        run: |
-          python3 inject.py
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Commit updated HTML
+      - name: Install dependencies
+        run: pip install pandas
+
+      - name: Bake CSV into HTML
+        run: python3 inject.py
+
+      - name: Commit and push updated HTML
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add index.html
-          git diff --cached --quiet || git commit -m "Auto: bake latest CSV data"
-          git push
+          git diff --cached --quiet && echo "No changes to commit" || (git commit -m "Auto: bake latest timesheet data [skip ci]" && git push)
