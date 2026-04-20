@@ -379,12 +379,17 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // STEP 2: Fetch fresh CSV in background — update silently when ready
-  fetch(CSV_URL, { signal: AbortSignal.timeout(20000) })
-    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+  const PROXY = 'https://corsproxy.io/?url=';
+  function tryFetch(url) {
+    return fetch(url, { signal: AbortSignal.timeout(20000) })
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); });
+  }
+
+  tryFetch(CSV_URL)
+    .catch(() => tryFetch(PROXY + encodeURIComponent(CSV_URL)))
     .then(csv => {
       const fresh = processCSV(csv);
-      // Only update if data is actually different (check record count + last date)
-      const isNew = !D || fresh.totalRecords !== D.totalRecords || fresh.fetchedAt !== D.fetchedAt;
+      const isNew = !D || fresh.totalRecords !== D.totalRecords;
       saveCache(fresh);
       D = fresh;
       if (isNew) {
@@ -397,7 +402,6 @@ window.addEventListener('DOMContentLoaded', () => {
     .catch(err => {
       console.warn('Google Sheets fetch failed:', err.message);
       if (!cached) {
-        // No cache and fetch failed — use embedded
         D = EMBEDDED;
         buildUI();
       }
