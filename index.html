@@ -127,7 +127,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 <body>
 
 <!-- LOADING OVERLAY -->
-<div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(245,242,237,0.92);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(3px)">
+<div id="loading-overlay" style="display:none;position:fixed;inset:0;background:rgba(245,242,237,0.92);z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px;backdrop-filter:blur(3px)">
   <div style="font-family:'Playfair Display',serif;font-size:28px;color:#1a1612">GTC Timesheet <span style="color:#c8421a">Validator</span></div>
   <div style="width:280px;height:3px;background:#d8d2c8;overflow:hidden;border-radius:2px">
     <div id="load-bar" style="height:100%;background:#c8421a;width:0%;animation:loadbar 2s ease-in-out infinite"></div>
@@ -347,8 +347,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 <script>
 
 // ── CONFIG ────────────────────────────────────────────────────────────────
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/1gGB7tk4jrKLvI9ExXFYjjyw_DXf6xHBNngB6ZfivHjM/export?format=csv&gid=638621109';
-const CACHE_KEY = 'gtc_ts_v3';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQDfghXY8qrrl67BoEqbgyVYLj0SUgeYDhfc_RK-VdJTyr_jrcG3D_o1pOQEUoUwcJQVGkE6yX3ozow/pub?output=csv';
+const CACHE_KEY = 'gtc_ts_v4';
 
 // ── EMBEDDED FALLBACK ─────────────────────────────────────────────────────
 const EMBEDDED = { perPerson:{}, topTasks:[], catByPM:{}, chalDist:{}, lateNight:{}, employees:[], months:[], totalRecords:0, fetchedAt:null };
@@ -1068,8 +1068,9 @@ function buildReportView() {
 
 // ── CSV PROCESSING ───────────────────────────────────────────
 function processCSV(csvText) {
+  csvText=csvText.replace(/^\ufeff/,''); // strip UTF-8 BOM from Google Sheets exports
   const lines=csvText.trim().split('\n');
-  const headers=parseCSVRow(lines[0]).map(h=>h.trim().replace(/^"|"$/g,''));
+  const headers=parseCSVRow(lines[0]).map(h=>h.trim().replace(/^"|"$/g,'').replace(/^\ufeff/,''));
   const idx={};
   const MAP={name:['name'],task:['task'],category:['category'],challenge:['level of challenge','challenge'],start:['start'],end:['end'],hours:['time spent','hours spent','duration','total hours']};
   headers.forEach((h,i)=>{const hl=h.toLowerCase();Object.entries(MAP).forEach(([k,v])=>{if(v.some(x=>hl.includes(x)))idx[k]=i;});});
