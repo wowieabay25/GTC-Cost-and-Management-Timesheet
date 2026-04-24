@@ -22,13 +22,8 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 .status-pill{display:flex;align-items:center;gap:7px;padding:7px 13px;border-radius:3px;font-family:var(--mono);font-size:9px;letter-spacing:1px;border:1px solid}
 .status-pill{border-color:rgba(26,107,74,0.4);background:rgba(26,107,74,0.08);color:var(--accent2)}
 .status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.status-dot{background:var(--accent2)}
-50%{opacity:0.3}}
-
-.refresh-btn:hover{border-color:var(--accent2);color:var(--accent2)}
-.refresh-btn:disabled{opacity:0.4;cursor:not-allowed}
-
-
+.status-dot{background:var(--accent2);animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1} 50%{opacity:0.3}}
 @keyframes spin{to{transform:rotate(360deg)}}
 .last-updated{font-family:var(--mono);font-size:9px;color:#666;text-align:right;line-height:1.5}
 .nav{display:flex;border-bottom:2px solid var(--ink);background:var(--surface)}
@@ -352,8 +347,11 @@ body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:10
 <script>
 
 // ── CONFIG ────────────────────────────────────────────────────────────────
-const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQDfghXY8qrrl67BoEqbgyVYLj0SUgeYDhfc_RK-VdJTyr_jrcG3D_o1pOQEUoUwcJQVGkE6yX3ozow/pub?gid=2118541855&single=true&output=csv';
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQDfghXY8qrrl67BoEqbgyVYLj0SUgeYDhfc_RK-VdJTyr_jrcG3D_o1pOQEUoUwcJQVGkE6yX3ozow/pub?gid=638621109&single=true&output=csv';
 const CACHE_KEY = 'gtc_ts_v3';
+
+// ── EMBEDDED FALLBACK ─────────────────────────────────────────────────────
+const EMBEDDED = { perPerson:{}, topTasks:[], catByPM:{}, chalDist:{}, lateNight:{}, employees:[], months:[], totalRecords:0, fetchedAt:null };
 
 // ── STATE ─────────────────────────────────────────────────────────────────
 let D = null;
